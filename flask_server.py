@@ -4,6 +4,7 @@ from flask import Flask, jsonify
 import sys
 import logging
 from neo4jclient import Neo4jClient
+import pandas as pd
  
 # Flask constructor takes the name of
 # current module (__name__) as argument.
@@ -37,6 +38,16 @@ def create_app():
             logging.debug(f"query ")
             query_res = neo4j_client.query('MATCH (n) RETURN COUNT(n) AS count')
             return jsonify(query_res)
+
+
+        @app.route('/rest/query1', methods=['GET'])
+        def query1():
+            logging.debug(f"query1 ")
+            query = "MATCH (s:SHOPS)-[SERVICESWITH]-(t:ServiceTags) return s.name as shops, s.embedding as embedding,t.name as servicetag"
+            df = pd.DataFrame([dict(_) for _ in neo4j_client.query(query)])
+            query_res = df.head()
+            logging.debug(df.to_json())
+            return df.to_json()
 
     return app
 
