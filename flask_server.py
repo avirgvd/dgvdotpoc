@@ -1,6 +1,7 @@
 # Importing flask module in the project is mandatory
 # An object of Flask class is our WSGI application.
-from flask import Flask, jsonify
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import sys
 import logging
 from neo4jclient import Neo4jClient
@@ -22,6 +23,8 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 def create_app():
 
     app = Flask(__name__)
+    CORS(app, origins='*')
+
     # app.run(debug=True, host='localhost', port='5001')
     with app.app_context():
         
@@ -48,6 +51,49 @@ def create_app():
             query_res = df.head()
             logging.debug(df.to_json())
             return df.to_json()
+
+        @app.route('/rest/districts', methods=['GET'])
+        def getDistricts():
+            logging.debug("Get Districts")
+            query_res = neo4j_client.query('MATCH (n:DISTRICTS) RETURN (n)')
+            logging.debug(type(query_res))
+            result = []
+            for item in query_res:
+                logging.debug(f"item is {item.data()}")
+                result.append(item.data()['n'])
+            return jsonify(result)
+
+        @app.route('/rest/shops', methods=['GET'])
+        def getShops():
+            logging.debug("Get Shops")
+            district = request.args.get('district', '')
+            # query_res = neo4j_client.query('MATCH (n:SHOPS) RETURN (n)')
+            query_res = neo4j_client.query('MATCH (n:SHOPS)-[:LOCATEDIN]-(d:DISTRICTS{name:"' + district + '"}) return(n) ')
+            logging.debug(type(query_res))
+            result = []
+            for item in query_res:
+                logging.debug(f"item is {item.data()}")
+                result.append(item.data()['n'])
+            return jsonify(result)
+
+        @app.route('/rest/shopdetails', methods=['GET'])
+        def getShopdetails():
+            logging.debug("Get Shopdetails")
+            district = request.args.get('district', '')
+            shop = request.args.get('shop', '')
+            logging.debug(f"District: {district} Shop: {shop}")
+            result = []
+            query_stmt = 'Match (s:SHOPS{name:"' + shop + '"})-[:SERVICESWITH]-(se:ServiceTags)-[:UsesLicenses]-(so:ServiceTags_oemnames)-[:ContainsNames]->(oe:OEMNames) return so.lastused,oe.name'
+
+            query_res = neo4j_client.query(query_stmt)
+            logging.debug(type(query_res))
+            for i,item in enumerate(query_res):
+                logging.debug(i)
+                logging.debug(f"item is {item.data()}")
+                #result.append(item.data())
+                data1 = item.data()
+                result.append({"name": data1.get('oe.name'), "date": data1.get('so.lastused')})
+            return jsonify(result)
 
     return app
 

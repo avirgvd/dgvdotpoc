@@ -53,18 +53,22 @@ class Neo4jClient:
             Neo4jClient.__driver.close()
         
     def query(self, query, parameters=None, db=None):
+        logging.debug(f"query: {query}")
         assert Neo4jClient.__driver is not None, "Driver not initialized!"
         session = None
         response = None
+        records = None
         try: 
             session = Neo4jClient.__driver.session(database=db) if db is not None else Neo4jClient.__driver.session() 
             response = list(session.run(query, parameters))
+            records = [record for record in response]
         except Exception as e:
             print("Query failed:", e)
         finally: 
             if session is not None:
                 session.close()
-        return response
+        logging.debug(f"Returning records {records}")
+        return records
     
 
 
